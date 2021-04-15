@@ -176,12 +176,33 @@ viewer.timeline.zoomTo(start, stop);
 function computePositionProperty(altitude_offset) {
     var property = new Cesium.SampledPositionProperty();
 	var position;
+    var counter = 0;
     
-    for (var i = 0; i < position_data.length; ++i) {
+    var x_vel = -7; // m/s
+    var y_vel = -7; // m/s
+    var init_pos = position_data[0];
+    var time0 = Cesium.JulianDate.fromIso8601(init_pos[0]);
+    var R = 6378137 + init_pos[3] + altitude_offset;
+    var Rp = R*Math.cos(Cesium.Math.toRadians(init_pos[2]));
+    var long_vel = Cesium.Math.toDegrees(Math.asin(y_vel/Rp)); // deg/s
+    var lat_vel = Cesium.Math.toDegrees(Math.asin(x_vel/R)); // deg/s
+    var long_add = 0;
+    var lat_add = 0;
+
+
+    for (var i = 1; i < position_data.length; ++i) {
         var cur_pos = position_data[i];
+        var last_pos = position_data[i-1];
         var time = Cesium.JulianDate.fromIso8601(cur_pos[0]);
-        position = Cesium.Cartesian3.fromDegrees(cur_pos[1], cur_pos[2],
-			cur_pos[3] + altitude_offset);
+        var time_last = Cesium.JulianDate.fromIso8601(last_pos[0]);
+        var dt = Cesium.JulianDate.secondsDifference(time, time_last);
+        var time_passed = Cesium.JulianDate.secondsDifference(time, time0); // time from beginning in seconds
+        if(cur_pos[3] > (init_pos[3] + 4)){
+        	long_add = long_add + dt*long_vel;
+        	lat_add = lat_add + dt*lat_vel;
+        }
+        position = Cesium.Cartesian3.fromDegrees(cur_pos[1] + long_add, cur_pos[2] + lat_add, cur_pos[3] + altitude_offset);
+        
         property.addSample(time, position);
 
         //Also create a point for each sample we generate.
